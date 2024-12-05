@@ -1,6 +1,9 @@
-import sqlite3
-import re
+import glob
+import os
+import pathlib
 import random
+import re
+import sqlite3
 import textwrap
 
 def ConstructCostQuery(cost: str, types=[]):
@@ -20,7 +23,7 @@ def ConstructCostQuery(cost: str, types=[]):
     antisymbols = ['W', 'U', 'B', 'R', 'G', 'X']
     antisymbols = [symbol for symbol in antisymbols if symbol not in dedupe]
 
-    query = f"select name from cards where manaValue = {cmc}"
+    query = f"select uuid from cards where manaValue = {cmc}"
     if types:
         query = query + " and ("
         for type in types:
@@ -33,10 +36,10 @@ def ConstructCostQuery(cost: str, types=[]):
         query = query + f" and manaCost not like '%{symbol}%'"
     query = query + ";"
     
-    print(query)
+    #print(query)
     return query
 
-def SelectCardName(input, dbCursor):
+def SelectCard(input, dbCursor):
     dbResult = ""
     creatureResult = dbCursor.execute(ConstructCostQuery(input, ["Creature"])).fetchall();
     noncreatureResult = dbCursor.execute(ConstructCostQuery(input, ["Artifact", "Enchantment", "Planeswalker", "Battle"])).fetchall();
@@ -56,15 +59,40 @@ def SelectCardName(input, dbCursor):
 
     return random.choice(dedupedResults)[0]
 
-def GetCardImageRepresentation(name):
-    pass
+def GetCardImageRepresentation(uuid, dbCursor):
+    results = dbCursor.execute(f"select name, setCode from cards where uuid = \"{uuid}\"").fetchall()
+    if not results:
+        return False
+    
+    cardName = results[0][0]
+    cardSet = results[0][1]
 
-def GetCardTextRepresentation(name, dbCursor):
-    results = dbCursor.execute(f"select name, manaCost, type, text, flavorText, loyalty, power, toughness, setCode from cards where name = \"{name}\"").fetchall()
+    # handle double-faced cards
+    if " // " in cardName:
+        # just get the name of the top face
+        cardName = cardName.split(" // ")[0]
+
+    resultPath = ""
+    setPath = pathlib.Path(f"./cardImages/{cardSet}")
+    if setPath.exists():
+        filePath = pathlib.Path(f"./cardImages/{cardSet}/{cardName}*.jpg")
+        filenameList = glob.glob(str(filePath))
+        if(filenameList):
+            return random.choice(filenameList)
+
+    filePath = pathlib.Path(f"./cardImages/{cardName}*.jpg")
+    filenameList = glob.glob(str(filePath))
+    if(filenameList):
+            return random.choice(filenameList)
+    
+    return False
+
+def GetCardTextRepresentation(uuid, dbCursor):
+    results = dbCursor.execute(f"select name, manaCost, type, text, flavorText, loyalty, power, toughness, setCode from cards where uuid = \"{uuid}\"").fetchall()
     if not results:
         return ""
     
-    cardInfo = random.choice(results);
+    cardInfo = results[0]
 
     toReturn  = f"/----------------------------------------\\"
     toReturn += "\n| " + '\n'.join([textwrap.fill(p, 40) for p in (f"{cardInfo[0]}        {cardInfo[1]}").split('\\n')])
@@ -94,10 +122,15 @@ userInput = "."
 while(userInput != ""):
     userInput = input()
 
-    chosenCard = SelectCardName(userInput, dbCursor)
+    cardUUID = SelectCard(userInput, dbCursor)
+    
+    # force a card for debugging
+    # cardUUID = "4ccb3303-fe0b-5de4-9c42-86d9931e67f6"
 
-    if(GetCardImageRepresentation(chosenCard)):
-        pass
+    cardImageFile = GetCardImageRepresentation(cardUUID,  dbCursor);
+    if(cardImageFile):
+        #print(cardImageFile)
+        os.startfile(cardImageFile, "print")
     else:
-        print(GetCardTextRepresentation(chosenCard, dbCursor))
+        print(GetCardTextRepresentation(cardUUID, dbCursor))
 
