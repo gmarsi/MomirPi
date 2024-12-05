@@ -23,7 +23,7 @@ def ConstructCostQuery(cost: str, types=[]):
     antisymbols = ['W', 'U', 'B', 'R', 'G', 'X']
     antisymbols = [symbol for symbol in antisymbols if symbol not in dedupe]
 
-    query = f"select uuid from cards where manaValue = {cmc}"
+    query = f"select uuid, name from cards where manaValue = {cmc}"
     if types:
         query = query + " and ("
         for type in types:
@@ -53,11 +53,13 @@ def SelectCard(input, dbCursor):
     else:
         dbResult = spellResult
 
-    dedupedResults = list(dict.fromkeys(dbResult))
+    random.shuffle(dbResult)
+    resultDict = dict((y, x) for x, y in dbResult)
+    dedupedResults = list(resultDict.values())
     if not dedupedResults:
         return ""
 
-    return random.choice(dedupedResults)[0]
+    return random.choice(dedupedResults)
 
 def GetCardImageRepresentation(uuid, dbCursor):
     results = dbCursor.execute(f"select name, setCode from cards where uuid = \"{uuid}\"").fetchall()
