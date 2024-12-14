@@ -6,6 +6,8 @@ import re
 import sqlite3
 import textwrap
 
+import escpos_printer
+
 def ConstructCostQuery(cost: str, types=[]):
 
     costPattern = re.compile("^[1-9]?[0-9]?[CWUBRG]*$")
@@ -89,7 +91,33 @@ def GetCardImageRepresentation(uuid, dbCursor):
     
     return False
 
-def GetCardTextRepresentation(uuid, dbCursor):
+def GetCardCompactTextRepresentation(uuid, dbCursor):
+    results = dbCursor.execute(f"select name, manaCost, type, text, flavorText, loyalty, power, toughness, setCode from cards where uuid = \"{uuid}\"").fetchall()
+    if not results:
+        return ""
+    
+    cardInfo = results[0]
+
+    toReturn  = f"/-------------------------------\\"
+    toReturn += "\n| " + '\n'.join([textwrap.fill(p, 32) for p in (f"{cardInfo[0]}   {cardInfo[1]}").split('\\n')])
+    toReturn += f"\n| /--------------------------\ |"
+    toReturn += f"\n| |                          | |"
+    toReturn += f"\n| |                          | |"
+    toReturn += f"\n| |                          | |"
+    toReturn += f"\n| |                          | |"
+    toReturn += f"\n| \--------------------------/ |"
+    toReturn += f"\n|                              |"
+    toReturn += "\n| " + '\n'.join([textwrap.fill(p, 32) for p in (f"{cardInfo[2]}              {cardInfo[8]}").split('\\n')])
+    toReturn += f"\n|                              |"
+    toReturn += "\n| " + (cardInfo[3] and '\n'.join([textwrap.fill(p, 32) for p in cardInfo[3].split('\\n')]) or "")
+    toReturn += f"\n|                              |"
+    toReturn += "\n| " + (cardInfo[4] and '\n'.join([textwrap.fill(p, 32) for p in cardInfo[4].split('\\n')]) or "")
+    toReturn += f"\n|                        {(cardInfo[5] or '')}{((cardInfo[6] or cardInfo[7]) and cardInfo[6]+'/'+cardInfo[7] or '')}"
+    toReturn += f"\n\------------------------------/"
+
+    return toReturn
+
+def GetCardFullTextRepresentation(uuid, dbCursor):
     results = dbCursor.execute(f"select name, manaCost, type, text, flavorText, loyalty, power, toughness, setCode from cards where uuid = \"{uuid}\"").fetchall()
     if not results:
         return ""
@@ -120,8 +148,11 @@ def GetCardTextRepresentation(uuid, dbCursor):
 dbConnection = sqlite3.connect("AllPrintings.sqlite")
 dbCursor = dbConnection.cursor();
 
+printer = escpos_printer.FindPrinter()
+
 userInput = "."
 while(userInput != ""):
+
     userInput = input()
 
     cardUUID = SelectCard(userInput, dbCursor)
@@ -131,8 +162,7 @@ while(userInput != ""):
 
     cardImageFile = GetCardImageRepresentation(cardUUID,  dbCursor);
     if(cardImageFile):
-        #print(cardImageFile)
-        os.startfile(cardImageFile, "print")
+        escpos_printer.PrintImage(printer, cardImageFile)
     else:
-        print(GetCardTextRepresentation(cardUUID, dbCursor))
+        escpos_printer.PrintText(printer, GetCardCompactTextRepresentation(cardUUID, dbCursor))
 
