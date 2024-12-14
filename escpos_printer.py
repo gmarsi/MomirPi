@@ -3,7 +3,7 @@ from escpos.printer import Usb
 def FindPrinter():
     # these two numbers are vendor id and product id
     # you may have to change this depending on your driver situation
-    dev = Usb(0x09C5, 0x583E) 
+    dev = Usb(idVendor=0x09C5, idProduct=0x583E) 
     if dev is None:
         print("device not found")
         return None

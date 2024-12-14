@@ -5,6 +5,7 @@ Installation:
 1. Gather card images, if desired. They should be in /cardImages/[set code]/[name].jpg, and formatted as 400-pixel-wide, 200dpi, black-and-white images.
 2. Open .venv\Lib\site-packages\escpos\printer.py and comment out lines 61-71. This step is required for windows and may (?) be required for other platforms as well.
 3. Ensure your USB driver is compatible with esc/pos. You may have to install a new one (especially on Windows). See https://nyorikakar.medium.com/printing-with-python-and-epson-pos-printer-fbd17e127b6c for more.
+4. Ensure that the vendor ID and product ID in escpos_printer.py match the device ID and vendor ID of your printer. 
 
 Use:
 - Run momir.py 
